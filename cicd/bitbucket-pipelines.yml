@@ -1,0 +1,58 @@
+image: cloudreach/skill-up-cicd:hugo-0.47.1
+options:
+  size: 1x
+  max-time: 2
+  depth: 1
+pipelines:
+  default:
+    - step:
+        name: Buildtools versions
+        script:
+          - aws --version
+          - hugo version
+    - step:
+        name: Build
+        script:
+          - git submodule update --init
+          - hugo --cleanDestinationDir --enableGitInfo
+          - tree /opt/atlassian/pipelines/agent/build/
+        artifacts:
+          - public/**
+    - step:
+        name: Deploy to staging
+        deployment: staging
+        script:
+          - export COMMIT_SHORTHASH=$(echo ${BITBUCKET_COMMIT}|cut -c1-7) && echo $COMMIT_SHORTHASH
+          - export GIT_AUTHOR=$(git log -1 --pretty=format:'%an') && echo $GIT_AUTHOR
+          - echo "{\"channel\":\"cr-accelerating-ops\",\"username\":\"Skill-Up Bot\",\"text\":\"githash $COMMIT_SHORTHASH by $GIT_AUTHOR online at https://stage.skill-up.cloudreach.com/pr/$COMMIT_SHORTHASH/index.html\",\"icon_emoji\":\":yellow_heart:\"}" | tee /tmp/slack-message
+          - cat /tmp/slack-message
+          - tree /opt/atlassian/
+          - aws s3 sync /opt/atlassian/pipelines/agent/build/public/ s3://cloudreach-skillup-beta-webcontent/pr/$COMMIT_SHORTHASH/ --delete --cache-control max-age=3600
+          - "curl -Ss -X POST -H 'Content-type: application/json' -d @/tmp/slack-message $SLACK_WEBHOOK_URL"
+  branches:
+    master:
+      - step:
+          name: Buildtools versions
+          script:
+            - aws --version
+            - hugo version
+      - step:
+          name: Build
+          script:
+            - git submodule update --init
+            - hugo --cleanDestinationDir --enableGitInfo
+            - tree /opt/atlassian/pipelines/agent/build/
+          artifacts:
+            - public/**
+      - step:
+          name: Deploy to production
+          deployment: production
+          script:
+            - export COMMIT_SHORTHASH=$(echo ${BITBUCKET_COMMIT}|cut -c1-7) && echo $COMMIT_SHORTHASH
+            - export GIT_AUTHOR=$(git log -1 --pretty=format:'%an') && echo $GIT_AUTHOR
+            - echo "{\"channel\":\"cr-accelerating-ops\",\"username\":\"Skill-Up Bot\",\"text\":\"githash $COMMIT_SHORTHASH pushed live\",\"icon_emoji\":\":white_check_mark:\"}" | tee /tmp/slack-message
+            - cat /tmp/slack-message
+            - tree /opt/atlassian/
+            - aws s3 sync /opt/atlassian/pipelines/agent/build/public/ s3://cloudreach-skillup-webcontent/ --delete --cache-control max-age=3600
+            - aws cloudfront create-invalidation --distribution-id E3LAWW6QZ1FXQU --paths "/*"
+            - "curl -Ss -X POST -H 'Content-type: application/json' -d @/tmp/slack-message $SLACK_WEBHOOK_URL"
