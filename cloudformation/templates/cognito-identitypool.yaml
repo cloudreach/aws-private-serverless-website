@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Lambda function, invoked by Cognito users, which sends the Google login payload
+  from the client browser back to Google in order to verify the email address is
+  from a whitelist. If successful CloudFront cookies are issued.
+  Template from https://bitbucket.org/cloudreach/ce-labs-infra
+Parameters:
+  LambdaAuthoriserFunctionArn:
+    Description: ARN for the lambda authoriser function
+    Type: String
+  GoogleLoginClientID:
+    Description: ClientID for the 'Web Application' generated at Google for authenticating users visiting this site. e.g. 8395447436-i6148a5rvk8mfkpt6la7iaq4kpa4ls75.apps.googleusercontent.com
+    Type: String
+Resources:
+  CognitoIdentityPool:
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      AllowUnauthenticatedIdentities: "false"
+      SupportedLoginProviders:
+        accounts.google.com: !Ref GoogleLoginClientID
+  CognitoAuthenticatedRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Federated:
+                - cognito-identity.amazonaws.com
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: "authenticated"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "staticsite-cognito-authenticated"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: Allow
+                Resource: "*"
+                Action:
+                  - mobileanalytics:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+              -
+                Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Ref LambdaAuthoriserFunctionArn
+  CognitoRoleAttachmentAuth:
+    Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthenticatedRole.Arn
+Outputs:
+  CognitoIdentityPool:
+    Value: !GetAtt CognitoIdentityPool.Name
+  CognitoIdentityPoolId:
+    Value: !Ref CognitoIdentityPool

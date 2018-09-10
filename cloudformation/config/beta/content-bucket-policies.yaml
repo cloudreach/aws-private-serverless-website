@@ -1,0 +1,8 @@
+template_path: "templates/content-bucket-policies.yaml"
+stack_tags:
+  template_src: https://github.com/cloudreach/aws-private-serverless-website
+parameters:
+  ContentBucketName: !stack_output content-buckets::ContentBucketName
+  PublicBucketName: !stack_output content-buckets::PublicBucketName
+  AssetsBucketName: !stack_output content-buckets::AssetsBucketName
+  CloudFrontAccessIdentity: !stack_output cloudfront-distribution::CloudFrontAccessIdentity

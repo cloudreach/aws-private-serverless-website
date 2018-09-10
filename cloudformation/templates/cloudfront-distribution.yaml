@@ -1,0 +1,221 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Cloudfront distribution to front requests to content buckets.
+  Handles restriction for authorized users by way of checking Cloudfront cookies
+  and directs unauthorized users to a login flow
+  Template from https://bitbucket.org/cloudreach/ce-labs-infra
+Parameters:
+  ContentBucketDomainName:
+    Description: DNS name for the website output bucket
+    Type: String
+  PublicBucketDomainName:
+    Description: S3 bucket name for public files (login page, etc.)
+    Type: String
+  AssetsBucketDomainName:
+    Description: DNS name for the website assets bucket
+    Type: String
+  AccessLogsDomainName:
+    Description: DNS name for access logs bucket
+    Type: String
+  CloudFrontAccessIdentity:
+    Description: >
+      This is an AWS identity that allows CloudFront to access other restricted
+      AWS resources.
+      It cannot be created by CloudFormation. Create an identity on the following
+      page and give here the ID. e.g. "E1R2AV0EFNCS80"
+      https://console.aws.amazon.com/cloudfront/home?#oai
+    Type: String
+  CloudFrontOriginPathContent:
+    Description: Path to serve content from in the content bucket
+    Type: String
+    Default: ""
+  CloudFrontPublicPathContent:
+    Description: Path to serve content from in the public bucket
+    Type: String
+    Default: ""
+  CloudFrontOriginPathAssets:
+    Description: Path to serve assets from in the assets bucket
+    Type: String
+    Default: ""
+  CloudFrontPriceClass:
+    Description: >
+      Price Class dictates which global locations CloudFront will serve content
+      from. See the pricing page for more details. Defaults to cheapest is
+      PriceClass_100 and serves US, Canada & EU
+    Type: String
+    Default: "PriceClass_100"
+  CloudFrontPublicPathPattern:
+    Description: >
+      Path pattern to website pages which are public, i.e. not behind the
+      cookie authorization flow. Useful for login pages, public landing, etc.
+    Type: String
+    Default: "/public/*"
+  CloudFrontAssetsPathPattern:
+    Description: >
+      Path pattern to the assets bucket
+    Type: String
+    Default: "/assets/*"
+  TlsCertificateArn:
+    Description: >
+      ARN for the HTTPS certificate covering the domain in WebsiteAddress. This
+      certificate MUST exist in us-east-1, regardless of which region this
+      CloudFormation stack is being is launched from
+    Type: String
+  WebsiteAddress:
+    Description: >
+      The web address to host the website at. Do not prefix with http
+      e.g. labs.cloudreach.co.uk
+    Type: String
+  HostedZoneID:
+    Description: >
+      Pre-existing hostedzone where an alias record should be created
+    Type: String
+  WebsiteIndexDoc:
+    Description: Website index document
+    Type: String
+    Default: "index.html"
+  Website404ErrorDoc:
+    Description: Website 404 error document
+    Type: String
+    Default: "/public/404.html"
+  Website403ErrorDoc:
+    Description: Website 403 error document
+    Type: String
+    Default: "/public/redirect.html"
+Resources:
+  CFDistribution:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref WebsiteAddress
+        Origins:
+          - DomainName: !Ref ContentBucketDomainName
+            OriginPath: !Ref CloudFrontOriginPathContent
+            Id: S3ContentBucketOrigin
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - "origin-access-identity/cloudfront/"
+                    -
+                      Ref: CloudFrontAccessIdentity
+          - DomainName: !Ref AssetsBucketDomainName
+            OriginPath: !Ref CloudFrontOriginPathAssets
+            Id: S3AssetsBucketOrigin
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - "origin-access-identity/cloudfront/"
+                    -
+                      Ref: CloudFrontAccessIdentity
+          - DomainName: !Ref PublicBucketDomainName
+            OriginPath: !Ref CloudFrontPublicPathContent
+            Id: S3PublicBucketOrigin
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - "origin-access-identity/cloudfront/"
+                    -
+                      Ref: CloudFrontAccessIdentity
+        Comment:
+          Fn::Join:
+            - ""
+            - - "CloudFront distribution for "
+              -
+                Ref: "WebsiteAddress"
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          TargetOriginId: S3ContentBucketOrigin
+          ForwardedValues:
+            QueryString: "true"
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+          DefaultTTL: 3600
+          MinTTL: 3600
+          MaxTTL: 3600
+          Compress: "true"
+          TrustedSigners:
+            - !Ref "AWS::AccountId"
+        CacheBehaviors:
+          - PathPattern: !Ref CloudFrontPublicPathPattern
+            TargetOriginId: S3PublicBucketOrigin
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            ForwardedValues:
+              QueryString: "false"
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: "true"
+          - PathPattern: !Ref CloudFrontAssetsPathPattern
+            TargetOriginId: S3AssetsBucketOrigin
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            ForwardedValues:
+              QueryString: "false"
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+            DefaultTTL: 604800
+            MinTTL: 604800
+            MaxTTL: 604800
+            Compress: "true"
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 403
+            ResponsePagePath: !Ref Website403ErrorDoc
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: !Ref Website404ErrorDoc
+        DefaultRootObject: !Ref WebsiteIndexDoc
+        Enabled: "true"
+        HttpVersion: http2
+        IPV6Enabled: "false"
+        PriceClass: !Ref CloudFrontPriceClass
+        Logging:
+          Bucket: !Ref AccessLogsDomainName
+          Prefix:
+            Fn::Join:
+              - ""
+              -
+                - Ref: "WebsiteAddress"
+                - "/"
+        ViewerCertificate:
+          AcmCertificateArn: !Ref TlsCertificateArn
+          SslSupportMethod: sni-only
+  R53Record:
+    Type: "AWS::Route53::RecordSet"
+    Properties:
+      Comment:
+        Fn::Join:
+          - ""
+          -
+            - "Alias CloudFront for "
+            -
+              Ref: "WebsiteAddress"
+      HostedZoneId: !Ref HostedZoneID
+      Type: A
+      Name: !Ref WebsiteAddress
+      AliasTarget:
+        DNSName: !GetAtt CFDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+Outputs:
+  CloudFrontAccessIdentity:
+    Description: Cloud Front Access Identity
+    Value: !Ref CloudFrontAccessIdentity
+  CloudFrontDistributionID:
+    Description: Cloud Front Distribution ID
+    Value: !Ref CFDistribution
+  WebsiteAddress:
+    Value: !Ref WebsiteAddress

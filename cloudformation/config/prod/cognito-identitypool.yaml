@@ -1,0 +1,7 @@
+template_path: "templates/cognito-identitypool.yaml"
+stack_tags:
+  template_src: https://github.com/cloudreach/aws-private-serverless-website
+parameters:
+  LambdaAuthoriserFunctionArn: !stack_output lambda-authoriser::LambdaFunctionArn
+
+  GoogleLoginClientID: "<e.g. 1122334455-dc36iwcyv012h04w7q6gvjyk30f2yug2.apps.googleusercontent.com>"

@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Content S3 buckets for static site content.
+  * One for hugo rendered output
+  * One for website assets (images, documents, etc.)
+  Template from https://bitbucket.org/cloudreach/ce-labs-infra
+Parameters:
+  ContentBucketName:
+    Description: S3 bucket name for rendered website output
+    Type: String
+  PublicBucketName:
+    Description: S3 bucket name for public files (login page, etc.)
+    Type: String
+  AssetsBucketName:
+    Description: S3 bucket name for website assets
+    Type: String
+  AccessLogsBucketName:
+    Description: S3 bucket name for storing cloudfront access logs
+    Type: String
+Resources:
+  ContentBucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref ContentBucketName
+  PublicBucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref PublicBucketName
+  AssetsBucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref AssetsBucketName
+      VersioningConfiguration:
+        Status: Enabled
+  LogsBucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref AccessLogsBucketName
+Outputs:
+  ContentBucketName:
+    Description: S3 bucket name for rendered website output
+    Value: !Ref ContentBucketName
+  ContentBucketDomainName:
+    Description: S3 bucket Domain for rendered website output
+    Value: !GetAtt ContentBucket.DomainName
+  PublicBucketName:
+    Description: S3 bucket name for public files (login page, etc.)
+    Value: !Ref PublicBucketName
+  PublicBucketDomainName:
+    Description: S3 bucket Domain for public files (login page, etc.)
+    Value: !GetAtt PublicBucket.DomainName
+  AssetsBucketName:
+    Description: S3 bucket name for website assets
+    Value: !Ref AssetsBucketName
+  AssetsBucketDomainName:
+    Description: S3 bucket Domain for website assets
+    Value: !GetAtt AssetsBucket.DomainName
+  AccessLogsBucketName:
+    Description: S3 bucket name for cloudfront access logs
+    Value: !Ref AccessLogsBucketName
+  AccessLogsDomainName:
+    Description: S3 bucket domain for cloudfront access logs
+    Value: !GetAtt LogsBucket.DomainName

@@ -1,0 +1,13 @@
+template_path: "templates/lambda-authoriser.yaml"
+stack_tags:
+  template_src: https://github.com/cloudreach/aws-private-serverless-website
+parameters:
+  CloudFrontCookieDomain: !stack_output cloudfront-distribution::WebsiteAddress
+
+  CloudFrontCookieValidityDays: "30"
+  CloudFrontKeyS3Bucket: "<Bucket containing CloudFront Key e.g. 1234-cloudfront-keys>"
+  CloudFrontKeyS3Key: "<Key(path) of the key file e.g. foo/bar/key.pem>"
+  CloudFrontKeyId: "<Key ID e.g. JGY1N5N7A2BL9MP59PYJ>"
+  LambdaCodeS3Bucket: "<Bucket containing lambda zip e.g. 1234-cloudfront-lambda>"
+  LambdaCodeS3Key: "<Key(path) of the lambda zip e.g. foo/bar/lambdav2.zip>"
+  AuthorisedDomains: "@example.com,@example.org,@example.uk"

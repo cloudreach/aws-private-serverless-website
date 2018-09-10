@@ -1,0 +1,13 @@
+template_path: "templates/cloudfront-distribution.yaml"
+stack_tags:
+  template_src: https://github.com/cloudreach/aws-private-serverless-website
+parameters:
+  ContentBucketDomainName: !stack_output content-buckets::ContentBucketDomainName
+  PublicBucketDomainName: !stack_output content-buckets::PublicBucketDomainName
+  AssetsBucketDomainName: !stack_output content-buckets::AssetsBucketDomainName
+  AccessLogsDomainName: !stack_output content-buckets::AccessLogsDomainName
+
+  CloudFrontAccessIdentity: "<14-character CloudFront Access Identity ID>"
+  TlsCertificateArn: "<Full ARN of ACM Cert (must be in us-east-1)>"
+  WebsiteAddress: "staging.example.org"
+  HostedZoneID: "<14-Character R53 Hosted Zone ID>"

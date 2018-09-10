@@ -1,0 +1,8 @@
+template_path: "templates/content-buckets.yaml"
+stack_tags:
+  template_src: https://github.com/cloudreach/aws-private-serverless-website
+parameters:
+  ContentBucketName: "<e.g. privatesite-example-webcontent>"
+  PublicBucketName: "<e.g. privatesite-example-public>"
+  AssetsBucketName: "<e.g. privatesite-example-assets>"
+  AccessLogsBucketName: "<e.g. privatesite-example-accesslogs>"

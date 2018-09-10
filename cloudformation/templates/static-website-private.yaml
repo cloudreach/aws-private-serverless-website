@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Launch a static website backed by an S3 bucket and served via https through cloudfront.
+  Assumes you have the following available already
+  * An address in mind (e.g. blog.example.com)
+  * Route53 Hosted Zone for the domain
+  * An AWS ACM certificate valid for the desired web address which must be in eu-west-1
+  Template from https://bitbucket.org/cloudreach/ce-labs-infra
+Parameters:
+  HostedZoneID:
+    Description: >
+      The Hosted Zone ID in which to create the website's DNS record.
+    Type: AWS::Route53::HostedZone::Id
+  WebsiteAddress:
+    Description: >
+      The web address to host the website at. Must be a subdomain of the hostedzone.
+      Do not prefix with http e.g. blog.m-taylor.co.uk.
+    Type: String
+  S3BucketName:
+    Description: Name of the s3 bucket to create for website source files.
+    Type: String
+  CloudfrontKeyBucket:
+    Description: Name of the bucket containing the CloudFront key
+    Type: String
+  CloudfrontKeyKey:
+    Description: Path to the key in the CloudFront key bucket
+    Type: String
+  CloudFrontAccessIdentity:
+    Description: >
+      This is an AWS identity that allows CloudFront to access other restricted AWS resources.
+      It cannot be created by CloudFormation. Visit the following page and provide a name.
+      https://console.aws.amazon.com/cloudfront/home?#oai
+    Type: String
+  CloudFrontOriginPath:
+    Description: Path to serve files from in the S3 bucket
+    Type: String
+    Default: ""
+  CloudFrontPriceClass:
+    Description: >
+      Price Class dictates which global locations CloudFront will serve content from. See the
+      pricing page for more details. The cheapest is PriceClass_100 and serves US, Canada & EU
+    Type: String
+    Default: "PriceClass_100"
+  TlsCertificateArn:
+    Description: >
+      ARN for the HTTPS certificate covering the domain in WebsiteAddress. This object must be
+      created in us-east-1, regardless of which region this CloudFormation template is launched.
+    Type: String
+  WebsiteIndexDoc:
+    Description: Website index document
+    Type: String
+    Default: "index.html"
+  WebsiteErrorDoc:
+    Description: Website error document
+    Type: String
+    Default: "404.html"
+  LambdaCodeS3Bucket:
+    Description: S3 Bucket containing the lambda function
+    Type: String
+  LambdaCodeS3Key:
+    Description: Key within the S3 bucket for the lambda function code
+    Type: String
+  GoogleLoginClientID:
+    Description: Client ID for the Google OAuth login
+    Type: String
+Resources:
+  S3Bucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref S3BucketName
+  S3BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Statement:
+          -
+            Sid: "AllowCloudFrontAccessGetObjects"
+            Effect: "Allow"
+            Action:
+              - "s3:GetObject"
+            Resource:
+              Fn::Join:
+                - ""
+                -
+                  - "arn:aws:s3:::"
+                  - !Ref "S3Bucket"
+                  - "/*"
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  -
+                    - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    -
+                      !Ref CloudFrontAccessIdentity
+          -
+            Sid: "AllowCloudFrontAccessListBucket"
+            Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+            Resource:
+              Fn::Join:
+                - ""
+                -
+                  - "arn:aws:s3:::"
+                  - !Ref "S3Bucket"
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  -
+                    - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    -
+                      !Ref CloudFrontAccessIdentity
+  R53Record:
+    Type: "AWS::Route53::RecordSet"
+    Properties:
+      Comment:
+        Fn::Join:
+          - ""
+          -
+            - "Alias CloudFront for "
+            -
+              Ref: "WebsiteAddress"
+      HostedZoneId: !Ref HostedZoneID
+      Type: A
+      Name: !Ref WebsiteAddress
+      AliasTarget:
+        DNSName: !GetAtt CFDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+  CFDistribution:
+    Type: "AWS::CloudFront::Distribution"
+    DependsOn: "S3Bucket"
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref WebsiteAddress
+        Origins:
+          - DomainName: !GetAtt S3Bucket.DomainName
+            OriginPath: !Ref CloudFrontOriginPath
+            Id: S3BucketOrigin
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  -
+                    - "origin-access-identity/cloudfront/"
+                    -
+                      Ref: CloudFrontAccessIdentity
+        Comment:
+          Fn::Join:
+            - ""
+            -
+              - "CloudFront origin for "
+              -
+                Ref: "WebsiteAddress"
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          TargetOriginId: S3BucketOrigin
+          ForwardedValues:
+            QueryString: "false"
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+          DefaultTTL: 30
+          MinTTL: 30
+          MaxTTL: 3600
+          TrustedSigners:
+            - !Ref "AWS::AccountId"
+        CacheBehaviors:
+          - PathPattern: "/public/*"
+            TargetOriginId: S3BucketOrigin
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            ForwardedValues:
+              QueryString: "false"
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+            DefaultTTL: 30
+            MinTTL: 30
+            MaxTTL: 3600
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 403
+            ResponsePagePath: "/public/redirect.html"
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: "/public/404.html"
+        DefaultRootObject: index.html
+        Enabled: "true"
+        HttpVersion: http2
+        IPV6Enabled: "false"
+        PriceClass: !Ref CloudFrontPriceClass
+        ViewerCertificate:
+          AcmCertificateArn: !Ref TlsCertificateArn
+          SslSupportMethod: sni-only
+  LambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: staticsite-authoriser-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "staticsite-authoriser"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Sid: AllowLogs
+                Effect: Allow
+                Resource: "*"
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              -
+                Sid: "AllowCloudfrontKey"
+                Effect: "Allow"
+                Action:
+                  - "s3:GetObject"
+                Resource:
+                  Fn::Join:
+                    - ""
+                    -
+                      - "arn:aws:s3:::"
+                      - !Ref CloudfrontKeyBucket
+                      - "/"
+                      - !Ref CloudfrontKeyKey
+  LambdaAuthoriser:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: staticsite-authoriser
+      Description: >
+        Passes a suplied Google OAuth2 token to Google and inspects the email domain.
+        Sets CloudFront cookies if domain matches and returns a denied message if not.
+      Code:
+        S3Bucket: !Ref LambdaCodeS3Bucket
+        S3Key: !Ref LambdaCodeS3Key
+      Runtime: nodejs4.3
+      Handler: lambda.handler
+      MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 10
+  CognitoAuthenticatedRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "staticsite-cognito-authenticated-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Federated:
+                - cognito-identity.amazonaws.com
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: "authenticated"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "staticsite-cognito-authenticated"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: Allow
+                Resource: "*"
+                Action:
+                  - mobileanalytics:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+              -
+                Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  Fn::Join:
+                    - ":"
+                    -
+                      - "arn:aws:lambda"
+                      - !Ref "AWS::Region"
+                      - !Ref "AWS::AccountId"
+                      - function
+                      - staticsite-authoriser
+  CognitoIdentityPool:
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      IdentityPoolName: staticsite_authoriser
+      AllowUnauthenticatedIdentities: "false"
+      SupportedLoginProviders:
+        accounts.google.com: !Ref GoogleLoginClientID
+  CognitoRoleAttachmentAuth:
+    Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthenticatedRole.Arn

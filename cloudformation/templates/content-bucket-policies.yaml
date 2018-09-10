@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  S3 Bucket polices for content and assets buckets to enable
+  secure cloudfront access and allow website editors to submit
+  assets
+  Template from https://bitbucket.org/cloudreach/ce-labs-infra
+Parameters:
+  ContentBucketName:
+    Description: S3 bucket name for rendered website output
+    Type: String
+  PublicBucketName:
+    Description: S3 bucket name for public contents (login page, etc.)
+    Type: String
+  AssetsBucketName:
+    Description: S3 bucket name for website assets
+    Type: String
+  CloudFrontAccessIdentity:
+    Description: >
+      This is an AWS identity that allows CloudFront to access other restricted
+      AWS resources.
+      It cannot be created by CloudFormation. Create an identity on the following
+      page and give here the ID. e.g. "E1R2AV0EFNCS80"
+      https://console.aws.amazon.com/cloudfront/home?#oai
+    Type: String
+Resources:
+  ContentBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref ContentBucketName
+      PolicyDocument:
+        Statement:
+          -
+            Sid: "AllowCloudFrontAccessGetObjects"
+            Effect: "Allow"
+            Action:
+              - "s3:GetObject"
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref ContentBucketName
+                  - "/*"
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    - !Ref CloudFrontAccessIdentity
+          -
+            Sid: "AllowCloudFrontAccessListBucket"
+            Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref ContentBucketName
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    - !Ref CloudFrontAccessIdentity
+  PublicBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref PublicBucketName
+      PolicyDocument:
+        Statement:
+          -
+            Sid: "AllowCloudFrontAccessGetObjects"
+            Effect: "Allow"
+            Action:
+              - "s3:GetObject"
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref PublicBucketName
+                  - "/*"
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    - !Ref CloudFrontAccessIdentity
+          -
+            Sid: "AllowCloudFrontAccessListBucket"
+            Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref PublicBucketName
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    - !Ref CloudFrontAccessIdentity
+  AssetsBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref AssetsBucketName
+      PolicyDocument:
+        Statement:
+          -
+            Sid: "AllowCloudFrontAccessGetObjects"
+            Effect: "Allow"
+            Action:
+              - "s3:GetObject"
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref AssetsBucketName
+                  - "/*"
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    - !Ref CloudFrontAccessIdentity
+          -
+            Sid: "AllowCloudFrontAccessListBucket"
+            Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref AssetsBucketName
+            Principal:
+              AWS:
+                Fn::Join:
+                  - " "
+                  - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    - !Ref CloudFrontAccessIdentity
+          -
+            Sid: "DenyDeleteObjects"
+            Effect: "Deny"
+            Action:
+              - "s3:DeleteObjectVersion"
+              - "s3:DeleteObject"
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref AssetsBucketName
+                  - "/*"
+            Principal: "*"
