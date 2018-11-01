@@ -8,7 +8,6 @@ There are several manual steps required before the CloudFormation can be run. So
 
 The lambda JS code was forked from a [blog post](https://www.ocelotconsulting.com/2016/10/03/cloudfront-security.html) and [GitHub repository](https://github.com/ocelotconsulting/s3nator) from Ocelot Consulting. Thanks!
 
-
 ## Deployment
 
 All these resources must be created manually before deploying the CloudFormation stacks. Some are impossible to create with CloudFormation, some were intentionally left out. All are required.
@@ -72,6 +71,20 @@ Once sceptre has finished these actions also need performing. Unfortunately Clou
 * A **FULL_ACCESS** S3 ACL needs setting on the on the S3 bucket created in order to allow CloudFront to write access logs. The Account ID below is the central account AWS uses to publish logs. This is [documented here](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html).
   * `$ aws s3api put-bucket-acl --bucket <your logs bucket> --grant-full-control id=c4c1ede66af53448b93c283ce9448c4ba468c9432aa01d700d3878632f77d2d0`
 * Optionally, you could change the CloudFront TLS security policy to something more secure than the default if you desire
+
+## Upload web content to S3
+
+Upload some content into the newly created S3 bucket. Even if only a simple Hello World message inside `index.html` the upload is necessary to prove the login flow is working as expected.
+
+## Upload login page assets to S3
+
+Inside the folder `public-assets/` are the html files necessary to drive the login flow. Update these values inside the `login.html` and `access_denied.html` pages wherever necessary:
+
+* **google-signin-client_id**: Google Client ID created on the Google API Console
+* **IdentityPoolId**: ID of the AWS Cognito Identity Pool
+* **FunctionName**: ARN of the Lambda function
+
+Upload these files to a folder called `public/` in the 'public' S3 bucket. e.g. `s3://public-bucket-name/public/login.html`.
 
 ## Configuring CI/CD
 

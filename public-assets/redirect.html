@@ -1,0 +1,14 @@
+<html lang="en">
+  <body>
+    <script>
+      // Get window.location object
+      var currLocation = window.location;
+      // Force the protocol by reassembling the url
+      var newLocation = "https://" + currLocation.host + currLocation.pathname + currLocation.search + currLocation.hash;
+      // Encode the href in b64
+      var state = window.btoa(newLocation);
+      // Redirect the visitor
+      window.location = "https://" + currLocation.host + "/public/login.html?state=" + state;
+    </script>
+  </body>
+</html>

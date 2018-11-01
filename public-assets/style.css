@@ -1,0 +1,57 @@
+
+  /*;*/
+
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  font-family: "Droid Sans", Arial, sans-serif;
+  font-size: 12pt;
+  text-align: center;
+}
+
+body {
+  display: -ms-flexbox;
+  display: -webkit-box;
+  display: flex;
+  -ms-flex-align: center;
+  -ms-flex-pack: center;
+  -webkit-box-align: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  justify-content: center;
+  background-color: #41a8b9;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+h1 {
+  font-size: 30pt;
+  font-weight: bold;
+  color: #fbb043;
+}
+
+.form-signin {
+  width: 100%;
+  max-width: 550px;
+  padding: 15px;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 5px;
+  border-top: 10px solid #fbb043
+}
+
+.g-signin2 {
+  padding: 15px;
+}
+
+.form-signin .mb-4 {
+  width: 90%;
+}
+
+.form-signin .abcRioButton {
+  margin: 0 auto;
+}

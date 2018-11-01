@@ -1,0 +1,88 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta name="google-signin-scope" content="profile email">
+    <meta name="google-signin-client_id" content="8395447436-i6148a5rvk8mfkpt6la7iaq4kpa4pw00.apps.googleusercontent.com">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.188.0.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link href='./style.css' rel='stylesheet' type='text/css'/>
+    <link href='https://fonts.googleapis.com/css?family=Droid+Sans%3A400%2C700&#038;ver=all' type='text/css' media='all' rel='stylesheet' id='googlefonts-css'  />
+    <title>Cloudreach Private-site</title>
+  </head>
+  <body class="text-center">
+    <form class="form-signin">
+      <h1>Private-site</h1>
+      <p>Use your GSuite email address to login </p>
+      <div class="g-signin2" data-onsuccess="onSignIn" data-prompt="select_account" data-theme="dark"></div>
+      <p class="mt-5 mb-3 text-muted">&copy; 2018</p>
+    </form>
+    <script>
+      function onSignIn(googleUser){
+        payload = JSON.stringify({
+          id_token: googleUser.getAuthResponse().id_token
+        });
+
+       AWS.config.region = 'eu-west-1';
+       AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+          IdentityPoolId: 'eu-west-1:90536e05-4251-4880-93d4-2wor4975f1d8',
+          Logins: {
+             'accounts.google.com': googleUser.getAuthResponse().id_token
+          }
+       });
+
+       AWS.config.credentials.get(function(err){
+          Promise.resolve().then(function(){
+           if(err){
+             throw err;
+           }
+          }).then(function(){
+            var lambda = new AWS.Lambda();
+            var params = {
+              FunctionName: 'arn:aws:lambda:eu-west-1:677506473622:function:ce-labs-infra-prod-lambda-authori-LambdaAuthoriser-1FZOVXETT28WE',
+              InvocationType: 'RequestResponse',
+              LogType: 'Tail',
+              Payload: JSON.stringify({
+                Logins: {
+                   'accounts.google.com': googleUser.getAuthResponse().id_token
+                }
+              })
+            };
+            return lambda.invoke(params).promise();
+          }).then(function(res){
+            var payload = JSON.parse(res.Payload);
+            if(payload.errorMessage){
+              throw new Error(payload.errorMessage);
+            }
+            else{
+              return payload;
+            }
+          }).then(function(payload){
+            function getQueryParameter(name, url) {
+              if (!url) url = window.location.href;
+              name = name.replace(/[\[\]]/g, "\\$&");
+              var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+              if (!results) return null;
+              if (!results[2]) return null;
+              return decodeURIComponent(results[2].replace(/\+/g, " "));
+            }
+
+            document.cookie = `CloudFront-Key-Pair-Id=${payload['CloudFront-Key-Pair-Id']}; Path=/; Secure`;
+            document.cookie = `CloudFront-Policy=${payload['CloudFront-Policy']}; Path=/; Secure`;
+            document.cookie = `CloudFront-Signature=${payload['CloudFront-Signature']}; Path=/; Secure`;
+            var state = getQueryParameter('state', window.location.href);
+            var decodedState = window.atob(state);
+            window.location = decodedState;
+
+          }).catch(function(err){
+            console.log(err);
+            window.location = '/public/access_denied.html';
+          });
+        });
+      };
+    </script>
+  </body>
+</html>

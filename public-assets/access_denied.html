@@ -1,0 +1,43 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta name="google-signin-scope" content="profile email">
+    <meta name="google-signin-client_id" content="8395447436-i6148a5rvk8mfkpt6la7iaq4kpa4pw00.apps.googleusercontent.com">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.188.0.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link href='./style.css' rel='stylesheet' type='text/css'/>
+    <link href='https://fonts.googleapis.com/css?family=Droid+Sans%3A400%2C700&#038;ver=all' type='text/css' media='all' rel='stylesheet' id='googlefonts-css'  />
+    <title>Cloudreach Skill-Up</title>
+    <script>
+      function delete_cookie(name) {
+        document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      }
+      function signOut() {
+        var auth2 = gapi.auth2.getAuthInstance();
+        auth2.signOut().then(function () {
+          console.log('User signed out.');
+          delete_cookie('CloudFront-Key-Pair-Id');
+          delete_cookie('CloudFront-Policy');
+          delete_cookie('CloudFront-Signature');
+          window.location = '/';
+        });
+      }
+      function onLoad() {
+        gapi.load('auth2', function() {
+          gapi.auth2.init();
+        });
+      }
+    </script>
+  </head>
+  <body class="text-center" onload="onLoad();">
+    <form class="form-signin">
+      <h1 class="h3 mb-3 font-weight-normal">Access Denied</h1>
+      <a href="#" onclick="signOut();">Return to Sign In</a>
+      <p class="mt-5 mb-3 text-muted">&copy; 2018</p>
+    </form>
+  </body>
+</html>
