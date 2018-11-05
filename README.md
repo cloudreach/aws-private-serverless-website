@@ -1,6 +1,6 @@
 # Private Serverless Static Website Infrastructure
 
-This repository accompanies the Cloudfreach blog post at [Hosting a private serverless static website on AWS](https://www.cloudreach.com/blog/foo).
+This repository accompanies the Cloudreach blog post at [Hosting a private serverless static website on AWS](https://www.cloudreach.com/blog/hosting-private-serverless-static-website-aws/).
 
 The CloudFormation code in this repository is designed to run with [Cloudreach Sceptre](https://github.com/cloudreach/sceptre). 
 
